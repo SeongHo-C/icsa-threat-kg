@@ -106,7 +106,10 @@ def main():
         })
 
     df = pd.DataFrame(rows, columns=cols)
-    df = df.sort_values(by='ID').reset_index(drop=True)
+    df = df.sort_values(
+        by='ID',
+        key=lambda s: s.str.extract(r'CWE-(\d+)')[0].astype(int)
+    ).reset_index(drop=True)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     df.to_csv(OUTPUT_FILE, index=False, encoding='utf-8-sig')
