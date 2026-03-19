@@ -8,3 +8,5 @@ pykeen
 pandas
 numpy
 matplotlib
+
+rapidfuzz
