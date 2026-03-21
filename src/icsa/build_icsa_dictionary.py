@@ -55,7 +55,6 @@ def clean_affected_product_list(affected_product_list):
 
     for item in affected_product_list:
         item = clean_text(item)
-
         if item:
             cleaned_products.append(item)
 
@@ -64,7 +63,7 @@ def clean_affected_product_list(affected_product_list):
     if not cleaned_products:
         return '*'
 
-    return ';'.join(cleaned_products)
+    return json.dumps(cleaned_products, ensure_ascii=False)
 
 
 def parse_icsa_sort_key(advisory_id):
