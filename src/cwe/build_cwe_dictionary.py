@@ -23,6 +23,19 @@ output_file = output_dir / 'cwe.csv'
 
 ns = {'cwe': 'http://cwe.mitre.org/cwe-7'}
 
+invalid_language_set = {
+    'Not Language-Specific',
+}
+
+invalid_technology_set = {
+    'Not Technology-Specific',
+    'Other'
+}
+
+invalid_consequence_set = {
+    'Other',
+}
+
 
 def clean_text(text):
     if not text:
@@ -78,14 +91,26 @@ def main():
         language = []
         for lang in item.findall('.//cwe:Language', ns):
             value = (lang.attrib.get('Class') or lang.attrib.get('Name') or '').strip()
-            if value:
-                language.append(value)
+
+            if not value:
+                continue
+
+            if value in invalid_language_set:
+                continue
+
+            language.append(value)
 
         technology = []
         for tech in item.findall('.//cwe:Technology', ns):
             value = (tech.attrib.get('Class') or tech.attrib.get('Name') or '').strip()
-            if value:
-                technology.append(value)
+
+            if not value:
+                continue
+
+            if value in invalid_technology_set:
+                continue
+
+            technology.append(value)
 
         likelihood_of_exploit = '*'
         likelihood_elem = item.find('.//cwe:Likelihood_Of_Exploit', ns)
@@ -96,8 +121,14 @@ def main():
         for cons in item.findall('.//cwe:Common_Consequences/cwe:Consequence', ns):
             for scope in cons.findall('.//cwe:Scope', ns):
                 value = clean_text(scope.text)
-                if value:
-                    consequence.append(value)
+
+                if not value:
+                    continue
+
+                if value in invalid_consequence_set:
+                    continue
+
+                consequence.append(value)
 
         rows.append({
             'cwe_id': cwe_id,
