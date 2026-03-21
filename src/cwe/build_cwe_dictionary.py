@@ -54,12 +54,17 @@ def main():
         'consequence'
     ]
     rows = []
+    deprecated_count = 0
 
     tree = et.parse(input_file)
     root = tree.getroot()
 
     for item in root.findall('.//cwe:Weakness', ns):
         status = item.attrib.get('Status', '').strip() or '*'
+        if status == 'Deprecated':
+            deprecated_count += 1
+            continue
+
         cwe_id = f"CWE-{item.attrib.get('ID', '')}"
 
         related_weakness = []
@@ -112,6 +117,8 @@ def main():
 
     output_dir.mkdir(parents=True, exist_ok=True)
     df_cwe.to_csv(output_file, index=False, encoding='utf-8-sig')
+
+    print(f'[INFO] Removed deprecated CWEs: {deprecated_count:,}')
     print(f'[DONE] Saved: {output_file} ({len(df_cwe):,} rows)')
 
 
