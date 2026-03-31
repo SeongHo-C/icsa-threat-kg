@@ -3,6 +3,7 @@ import pandas as pd
 from pathlib import Path
 
 
+# Find the project root directory by searching upward for a folder that contains 'data'.
 def resolve_base_dir():
     current_dir = Path.cwd().resolve()
 
@@ -13,19 +14,32 @@ def resolve_base_dir():
     raise FileNotFoundError("Could not find project root containing 'data' directory.")
 
 
+# Define file paths for raw CPE input data and processed output data.
 base_dir = resolve_base_dir()
 raw_cpe_dir = base_dir / 'data' / 'raw' / 'cpe' / 'nvdcpe-2.0-chunks'
 output_dir = base_dir / 'data' / 'processed' / 'cpe'
-output_file = output_dir / 'cpe_dictionary.csv'
-
-columns = ['part', 'vendor', 'product', 'target_sw', 'target_hw', 'cpe23_uri']
+output_file = output_dir / 'cpe_dictionary2.csv'
 
 
+# Load and parse a raw CPE JSON file.
 def load_json(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 
+# Extract CPE items from the raw CPE JSON data.
+def extract_cpe_items(data):
+    items = []
+
+    for product in data.get('products', []):
+        cpe_item = product.get('cpe', {})
+        if cpe_item:
+            items.append(cpe_item)
+
+    return items
+
+
+# Normalize a field value by converting missing or empty values to '*'.
 def normalize_field(value):
     if value is None:
         return '*'
@@ -34,8 +48,9 @@ def normalize_field(value):
     return value if value else '*'
 
 
-def split_cpe23_uri(cpe23_uri):
-    parts = cpe23_uri.split(':')
+# Extract key attributes from a CPE 2.3 name string.
+def split_cpe_name(name):
+    parts = name.split(':')
     result = {'part': '*', 'vendor': '*', 'product': '*', 'target_sw': '*', 'target_hw': '*'}
 
     if len(parts) >= 13:
@@ -48,24 +63,15 @@ def split_cpe23_uri(cpe23_uri):
     return result
 
 
+# Parse a CPE item and return the CPE name with selected extracted fields.
 def parse_cpe_item(cpe_item):
-    cpe23_uri = cpe_item.get('cpeName', '')
-    cpe_parts = split_cpe23_uri(cpe23_uri)
+    cpe_name = cpe_item.get('cpeName', '')
+    cpe_parts = split_cpe_name(cpe_name)
 
-    return {**cpe_parts, 'cpe23_uri': cpe23_uri}
-
-
-def extract_cpe_items(data):
-    items = []
-
-    for product in data.get('products', []):
-        cpe_item = product.get('cpe', {})
-        if cpe_item:
-            items.append(cpe_item)
-
-    return items
+    return {**cpe_parts, 'cpe_name': cpe_name}
 
 
+# Process raw CPE JSON files and build a deduplicated CPE dictionary.
 def main():
     rows = []
 
@@ -79,10 +85,12 @@ def main():
 
         cpe_items = extract_cpe_items(data)
         for cpe_item in cpe_items:
-            rows.append(parse_cpe_item(cpe_item))
+            if not cpe_item.get('deprecated', False):
+                rows.append(parse_cpe_item(cpe_item))
 
+    columns = ['part', 'vendor', 'product', 'target_sw', 'target_hw', 'cpe_name']
     df_cpe = pd.DataFrame(rows, columns=columns)
-    # Remove duplicate CPE rows and reset the row index.
+
     df_cpe = df_cpe.drop_duplicates().reset_index(drop=True)
 
     output_dir.mkdir(parents=True, exist_ok=True)
