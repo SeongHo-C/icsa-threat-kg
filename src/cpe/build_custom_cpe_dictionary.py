@@ -2,6 +2,7 @@ import pandas as pd
 from pathlib import Path
 
 
+# Find the project root directory by searching upward for a folder that contains 'data'.
 def resolve_base_dir():
     current_dir = Path().cwd().resolve()
 
@@ -12,15 +13,24 @@ def resolve_base_dir():
     raise FileNotFoundError("Could not find project root containing 'data' directory.")
 
 
+# Define file paths for the input CPE dictionary and the output custom CPE dictionary.
 base_dir = resolve_base_dir()
 input_file = base_dir / 'data' / 'processed' / 'cpe' / 'cpe_dictionary.csv'
-output_file = base_dir / 'data' / 'processed' / 'cpe' / 'cpe_kg_dictionary.csv'
+output_file = base_dir / 'data' / 'processed' / 'cpe' / 'custom_cpe_dictionary.csv'
 
 
-def normalize_field(series):
-    return (series.astype(object).fillna('*').astype(str).str.strip().replace('', '*'))
+# Normalize a pandas Series by replacing missing or empty values with '*'.
+def normalize_series(series):
+    return (
+        series.astype(object)
+        .fillna('*')
+        .astype(str)
+        .str.strip()
+        .replace('', '*')
+    )
 
 
+# Build a custom CPE dictionary by aggregating normalized CPE field combinations.
 def main():
     print(f'[INFO] Processing {input_file.name} ...')
 
@@ -29,13 +39,13 @@ def main():
         usecols=['part', 'vendor', 'product', 'target_sw', 'target_hw']
     ).copy()
 
-    df_cpe['part'] = normalize_field(df_cpe['part'])
-    df_cpe['vendor'] = normalize_field(df_cpe['vendor'])
-    df_cpe['product'] = normalize_field(df_cpe['product'])
-    df_cpe['target_sw'] = normalize_field(df_cpe['target_sw'])
-    df_cpe['target_hw'] = normalize_field(df_cpe['target_hw'])
+    df_cpe['part'] = normalize_series(df_cpe['part'])
+    df_cpe['vendor'] = normalize_series(df_cpe['vendor'])
+    df_cpe['product'] = normalize_series(df_cpe['product'])
+    df_cpe['target_sw'] = normalize_series(df_cpe['target_sw'])
+    df_cpe['target_hw'] = normalize_series(df_cpe['target_hw'])
 
-    df_cpe['kg_cpe'] = (
+    df_cpe['custom_cpe_name'] = (
         'cpe:' + df_cpe['part'] + ':' +
         df_cpe['vendor'] + ':' +
         df_cpe['product'] + ':' +
@@ -44,13 +54,12 @@ def main():
     )
 
     df_cpe = df_cpe.groupby(
-        ['part', 'vendor', 'product', 'target_sw', 'target_hw', 'kg_cpe'],
+        ['part', 'vendor', 'product', 'target_sw', 'target_hw', 'custom_cpe_name'],
         as_index=False
-    ).size()
+    ).size().rename(columns={'size': 'count'})
 
-    # Sort merged CPEs by frequency, then by vendor and product name.
     df_cpe = df_cpe.sort_values(
-        by=['size', 'vendor', 'product'],
+        by=['count', 'vendor', 'product'],
         ascending=[False, True, True]
     ).reset_index(drop=True)
 
